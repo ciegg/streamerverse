@@ -69,6 +69,7 @@ func (c *collector) Start() {
 			fmt.Printf("Finished inserting top %d streams for %s\n", c.topX, plt.Name())
 		}
 
+		fmt.Printf("Next fetch at %s\n", time.Now().Add(c.interval))
 		time.Sleep(c.interval)
 	}
 }
