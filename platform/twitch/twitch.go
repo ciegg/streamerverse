@@ -78,6 +78,10 @@ func (t *twitch) GetTopStreamers(topX uint) ([]database.Streamer, error) {
 		return nil, err
 	}
 
+	if len(data.Streams) != len(streamerLookup) {
+		fmt.Printf("MISSING %d CHANNEL INFO(S)\n", len(data.Streams)-len(streamerLookup))
+	}
+
 	streamers := make([]database.Streamer, 0, len(streamerLookup))
 	for _, stream := range data.Streams {
 		info, ok := streamerLookup[stream.UserID]

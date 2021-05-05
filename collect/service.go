@@ -41,7 +41,7 @@ func (c *collector) Start() {
 			})
 
 			if err != nil {
-				fmt.Printf("FAILED TO FETCH TOP %d STREAMERS FOR %s: %s", c.topX, plt.Name(), err)
+				fmt.Printf("FAILED TO FETCH TOP %d STREAMERS FOR %s: %s\n", c.topX, plt.Name(), err)
 				continue
 			}
 
@@ -66,7 +66,7 @@ func (c *collector) Start() {
 
 			wg.Wait()
 
-			fmt.Printf("Finished inserting top %d streams for %s", c.topX, plt.Name())
+			fmt.Printf("Finished inserting top %d streams for %s\n", c.topX, plt.Name())
 		}
 
 		time.Sleep(c.interval)
