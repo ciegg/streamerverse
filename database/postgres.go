@@ -50,44 +50,48 @@ func CloseDB() {
 }
 
 func Insert(stream *Stream) error {
-	viewersTable := getCurrentViewersTable()
+	viewersTable, year, week := getCurrentViewersTable()
 	_, err := db.Exec(fmt.Sprintf(`SELECT 1 FROM %s`, viewersTable))
 
 	// Postgres undefined_table
 	// https://www.postgresql.org/docs/11/errcodes-appendix.html
 	if err != nil && strings.Contains(err.Error(), "42P01") {
-		if err := createViewerTable(); err != nil {
-			return err
+		if err := createNewViewerPartition(); err != nil {
+			return fmt.Errorf("failed to create new viewers table: %s", err)
 		}
 	} else if err != nil {
 		return err
 	}
 
-	for _, chatter := range stream.Viewers {
-		viewer := map[string]interface{}{
-			"id":       chatter,
-			"streamer": stream.Name,
-		}
+	viewers := make([]viewer, 0, len(stream.Viewers))
 
-		_, err := db.Model(&viewer).TableExpr(viewersTable).OnConflict("DO NOTHING").Insert()
-		if err != nil {
-			fmt.Printf("FAILED TO INSERT %s VIEWER %d INTO %s: %s\n", stream.Name, chatter, viewersTable, err)
-		}
+	for _, chatter := range stream.Viewers {
+		viewers = append(viewers, viewer{
+			ID:         chatter,
+			StreamerID: stream.ID,
+			ISOWeek:    fmt.Sprintf("Y%d-W%d", year, week),
+		})
+	}
+
+	_, err = db.Model(&viewers).OnConflict("DO NOTHING").Insert()
+	if err != nil {
+		fmt.Printf("FAILED TO INSERT %s VIEWERS INTO %s: %s\n", stream.Username, viewersTable, err)
 	}
 
 	_, err = db.Model(&stream.Streamer).
-		OnConflict("(name) DO UPDATE").
-		Set("description = EXCLUDED.description, avatar = EXCLUDED.avatar").
+		OnConflict("(id) DO UPDATE").
+		Set("username = EXCLUDED.username, description = EXCLUDED.description, avatar = EXCLUDED.avatar").
 		Insert()
+
 	if err != nil {
-		return err
+		err = fmt.Errorf("failed to upsert %s: %s", stream.Username, err)
 	}
 
-	return nil
+	return err
 }
 
-func getCurrentViewersTable() string {
+func getCurrentViewersTable() (string, int, int) {
 	year, week := time.Now().ISOWeek()
 
-	return fmt.Sprintf("viewers_%d_%d", year, week)
+	return fmt.Sprintf("viewers_y%d_w%d", year, week), year, week
 }

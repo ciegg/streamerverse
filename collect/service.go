@@ -31,6 +31,7 @@ func (c *collector) Start() {
 	fmt.Printf("Starting collector with %d platforms on %s interval\n", len(c.platforms), c.interval.String())
 	for {
 		for _, plt := range c.platforms {
+			start := time.Now()
 			fmt.Printf("Fetching top %d streamers on %s\n", c.topX, plt.Name())
 
 			var streamers []database.Streamer
@@ -66,7 +67,7 @@ func (c *collector) Start() {
 
 			wg.Wait()
 
-			fmt.Printf("Finished inserting top %d streams for %s\n", c.topX, plt.Name())
+			fmt.Printf("Finished inserting top %d streams for %s: %s\n", c.topX, plt.Name(), time.Now().Sub(start))
 		}
 
 		fmt.Printf("Next fetch at %s\n", time.Now().Add(c.interval))
@@ -84,27 +85,27 @@ func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform) {
 
 		stream := <-c.jobs
 
-		fmt.Printf("WORKER %d: Fetching %s viewers on %s\n", num, stream.Name, plt.Name())
+		fmt.Printf("WORKER %d: Fetching %s viewers on %s\n", num, stream.Username, plt.Name())
 
 		err := withRetry(3, func() error {
 			var err error
-			stream.Viewers, err = plt.GetViewers(stream.Name)
+			stream.Viewers, err = plt.GetViewers(stream.ID)
 			return err
 		})
 		if err != nil {
-			fmt.Printf("FAILED TO %s VIEWERS: %s\n", stream.Name, err)
+			fmt.Printf("FAILED TO %s VIEWERS: %s\n", stream.Username, err)
 			continue
 		}
 
-		fmt.Printf("WORKER %d: Inserting %s viewers into db\n", num, stream.Name)
+		fmt.Printf("WORKER %d: Inserting %s viewers into db\n", num, stream.Username)
 
 		err = withRetry(3, func() error {
 			return database.Insert(stream)
 		})
 		if err != nil {
-			fmt.Printf("FAILED TO INSERT %s INTO DB ON %s: %s\n", stream.Name, time.Now().String(), err)
+			fmt.Printf("INSERTING %s INTO DB FAILED: %s\n", stream.Username, err)
 		} else {
-			fmt.Printf("WORKER %d: Finished inserting %s viewers\n", num, stream.Name)
+			fmt.Printf("WORKER %d: Finished inserting %s viewers\n", num, stream.Username)
 		}
 	}
 }

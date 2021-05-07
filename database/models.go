@@ -14,11 +14,12 @@ type Platform string
 
 type Stream struct {
 	Streamer
-	Viewers UintSlice
+	Viewers []int64
 }
 
 type Streamer struct {
-	Name              string `pg:",pk"`
+	ID                string `pg:",pk"`
+	Username          string
 	Platform          Platform
 	Description       string
 	CustomDescription string
@@ -26,9 +27,18 @@ type Streamer struct {
 	CustomAvatar      string
 }
 
+type viewer struct {
+	tableName struct{} `pg:"viewers,partition_by:LIST(iso_week)"`
+
+	ID         int64  `pg:"type:bigint,pk"`
+	StreamerID string `pg:",pk"`
+	ISOWeek    string `pg:",type:varchar(9),pk"`
+}
+
 func createSchema() error {
 	models := []interface{}{
 		(*Streamer)(nil),
+		(*viewer)(nil),
 	}
 
 	for _, model := range models {
@@ -43,18 +53,12 @@ func createSchema() error {
 	return nil
 }
 
-func createViewerTable() error {
-	viewersTable := getCurrentViewersTable()
+func createNewViewerPartition() error {
+	viewersTable, year, week := getCurrentViewersTable()
 
 	fmt.Printf("Adding new viewers table: %s\n", viewersTable)
 
-	tableSQL := fmt.Sprintf(`
-CREATE TABLE IF NOT EXISTS %s (
-	id numeric(20),
-	streamer text,
-	PRIMARY KEY(id, streamer)
-);
-`, viewersTable)
+	tableSQL := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s PARTITION OF viewers FOR VALUES IN ('%s');`, viewersTable, fmt.Sprintf("Y%d-W%d", year, week))
 	_, err := db.Exec(tableSQL)
 
 	return err

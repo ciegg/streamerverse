@@ -91,7 +91,8 @@ func (t *twitch) GetTopStreamers(topX uint) ([]database.Streamer, error) {
 		}
 
 		streamers = append(streamers, database.Streamer{
-			Name:        stream.UserLogin,
+			ID:          stream.UserLogin,
+			Username:    stream.UserName,
 			Description: info.Description,
 			Avatar:      info.ProfileImageURL,
 			Platform:    database.Twitch,
@@ -131,7 +132,7 @@ func (t *twitch) getChannelInfo(userIDs []string) (map[string]User, error) {
 	return users, nil
 }
 
-func (t *twitch) GetViewers(username string) (database.UintSlice, error) {
+func (t *twitch) GetViewers(username string) ([]int64, error) {
 	resp, err := t.client.Client.Get(fmt.Sprintf("%s/%s/chatters", chatroomURL, username), nil)
 	if err != nil {
 		return nil, err
@@ -164,7 +165,7 @@ func (t *twitch) GetViewers(username string) (database.UintSlice, error) {
 	chatters = append(chatters, chatroom.Chatters.GlobalMods...)
 	chatters = append(chatters, chatroom.Chatters.Viewers...)
 
-	return database.NewUintSlice(chatters), nil
+	return database.HashViewers(chatters), nil
 }
 
 func (t *twitch) Name() database.Platform {

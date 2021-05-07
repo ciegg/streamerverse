@@ -4,6 +4,6 @@ import "streamerverse/database"
 
 type Platform interface {
 	GetTopStreamers(uint) ([]database.Streamer, error)
-	GetViewers(string) (database.UintSlice, error)
+	GetViewers(string) ([]int64, error)
 	Name() database.Platform
 }
