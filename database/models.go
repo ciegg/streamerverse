@@ -50,6 +50,10 @@ func createSchema() error {
 		}
 	}
 
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS i_streamer ON viewers (streamer_id);"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
