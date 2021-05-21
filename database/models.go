@@ -30,9 +30,10 @@ type Streamer struct {
 type viewer struct {
 	tableName struct{} `pg:"viewers,partition_by:LIST(iso_week)"`
 
-	ID         int64  `pg:"type:bigint,pk"`
-	StreamerID string `pg:",pk"`
+	// ORDER MATTERS
 	ISOWeek    string `pg:",type:varchar(9),pk"`
+	StreamerID string `pg:",pk"`
+	ID         int64  `pg:"type:bigint,pk"`
 }
 
 func createSchema() error {
@@ -48,10 +49,6 @@ func createSchema() error {
 		if err != nil {
 			return err
 		}
-	}
-
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS i_streamer ON viewers (streamer_id);"); err != nil {
-		return err
 	}
 
 	return nil
