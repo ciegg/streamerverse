@@ -43,34 +43,38 @@ func Setup() (*twitch, error) {
 	return t, nil
 }
 
-func (t *twitch) GetTopStreamers(topX uint) ([]database.Streamer, error) {
-	if topX > 100 {
-		return nil, fmt.Errorf("topX must be <= 100")
-	}
+func (t *twitch) GetTopStreamers(topX int) ([]database.Streamer, error) {
+	var userIDs []string
+	for x := topX; x < len(channels); x += topX {
+		url := fmt.Sprintf("%s?user_login=%s", streamsURL, strings.Join(channels[x-100:x], "&user_login="))
+		headers := http.Header{
+			"Authorization": []string{fmt.Sprintf("Bearer %s", t.client.AccessToken)},
+			"client-id":     []string{cfg.ClientID},
+		}
+		resp, err := t.client.Get(url, headers)
+		if err != nil {
+			return nil, err
+		}
 
-	url := fmt.Sprintf("%s?first=%d", streamsURL, topX)
-	headers := http.Header{
-		"Authorization": []string{fmt.Sprintf("Bearer %s", t.client.AccessToken)},
-		"client-id":     []string{cfg.ClientID},
-	}
-	resp, err := t.client.Get(url, headers)
-	if err != nil {
-		return nil, err
-	}
+		var data struct {
+			Streams []*Stream `json:"data"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+			return nil, err
+		}
 
-	defer resp.Body.Close()
+		resp.Body.Close()
 
-	var data struct {
-		Streams []*Stream `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, err
-	}
+		for _, stream := range data.Streams {
+			userIDs = append(userIDs, stream.UserID)
+			if len(userIDs) >= topX {
+				break
+			}
+		}
 
-	userIDs := make([]string, 0, len(data.Streams))
-
-	for _, stream := range data.Streams {
-		userIDs = append(userIDs, stream.UserID)
+		if len(userIDs) >= topX {
+			break
+		}
 	}
 
 	streamerLookup, err := t.getChannelInfo(userIDs)
@@ -78,23 +82,13 @@ func (t *twitch) GetTopStreamers(topX uint) ([]database.Streamer, error) {
 		return nil, err
 	}
 
-	if len(data.Streams) != len(streamerLookup) {
-		fmt.Printf("MISSING %d CHANNEL INFO(S)\n", len(data.Streams)-len(streamerLookup))
-	}
-
-	streamers := make([]database.Streamer, 0, len(streamerLookup))
-	for _, stream := range data.Streams {
-		info, ok := streamerLookup[stream.UserID]
-		if !ok {
-			fmt.Printf("FAILED TO FETCH %s CHANNEL INFO\n", stream.UserLogin)
-			continue
-		}
-
+	var streamers []database.Streamer
+	for _, user := range streamerLookup {
 		streamers = append(streamers, database.Streamer{
-			ID:          stream.UserLogin,
-			Username:    stream.UserName,
-			Description: info.Description,
-			Avatar:      info.ProfileImageURL,
+			ID:          user.Login,
+			Username:    user.DisplayName,
+			Description: user.Description,
+			Avatar:      user.ProfileImageURL,
 			Platform:    database.Twitch,
 		})
 	}
@@ -102,7 +96,7 @@ func (t *twitch) GetTopStreamers(topX uint) ([]database.Streamer, error) {
 	return streamers, nil
 }
 
-func (t *twitch) getChannelInfo(userIDs []string) (map[string]User, error) {
+func (t *twitch) getChannelInfo(userIDs []string) ([]*User, error) {
 	url := fmt.Sprintf("%s?id=%s", userURL, strings.Join(userIDs, "&id="))
 	headers := http.Header{
 		"Authorization": []string{fmt.Sprintf("Bearer %s", t.client.AccessToken)},
@@ -117,19 +111,13 @@ func (t *twitch) getChannelInfo(userIDs []string) (map[string]User, error) {
 	defer resp.Body.Close()
 
 	var data struct {
-		Users []User `json:"data"`
+		Users []*User `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
 	}
 
-	users := make(map[string]User)
-
-	for _, user := range data.Users {
-		users[user.ID] = user
-	}
-
-	return users, nil
+	return data.Users, nil
 }
 
 func (t *twitch) GetViewers(username string) ([]int64, error) {

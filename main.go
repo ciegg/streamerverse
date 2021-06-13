@@ -4,7 +4,6 @@ import (
 	"streamerverse/collect"
 	"streamerverse/config"
 	"streamerverse/database"
-	"streamerverse/platform"
 	"streamerverse/platform/twitch"
 )
 
@@ -19,12 +18,12 @@ func main() {
 
 	defer database.CloseDB()
 
-	t, err := twitch.Setup()
+	ttv, err := twitch.Setup()
 	if err != nil {
 		panic(err)
 	}
 
-	collector := collect.NewCollector([]platform.Platform{t})
+	collector := collect.NewCollector(ttv)
 
 	collector.Start()
 }

@@ -13,12 +13,12 @@ var cfg = config.Config
 
 type collector struct {
 	interval  time.Duration
-	topX      uint
+	topX      int
 	jobs      chan *database.Stream
 	platforms []platform.Platform
 }
 
-func NewCollector(platforms []platform.Platform) *collector {
+func NewCollector(platforms ...platform.Platform) *collector {
 	return &collector{
 		interval:  cfg.Interval.Duration,
 		topX:      cfg.TopX,

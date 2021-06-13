@@ -25,6 +25,7 @@ type User struct {
 	Description     string `json:"description"`
 	DisplayName     string `json:"display_name"`
 	ID              string `json:"id"`
+	Login           string `json:"login"`
 	OfflineImageURL string `json:"offline_image_url"`
 	ProfileImageURL string `json:"profile_image_url"`
 	Type            string `json:"type"`

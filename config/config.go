@@ -39,7 +39,7 @@ type config struct {
 	Secret      string
 	Debug       bool
 	Interval    Duration
-	TopX        uint
+	TopX        int
 }
 
 var Config = &config{}
