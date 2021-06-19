@@ -62,7 +62,7 @@ func (c *collector) Start() {
 
 			for x := 0; x < 10; x++ {
 				wg.Add(1)
-				go c.worker(&wg, x, plt)
+				go c.worker(&wg, x, plt, start)
 			}
 
 			wg.Wait()
@@ -75,7 +75,7 @@ func (c *collector) Start() {
 	}
 }
 
-func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform) {
+func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform, now time.Time) {
 	defer wg.Done()
 
 	for {
@@ -100,7 +100,7 @@ func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform) {
 		fmt.Printf("WORKER %d: Inserting %s viewers into db\n", num, stream.Username)
 
 		err = withRetry(3, func() error {
-			return database.Insert(stream)
+			return database.Insert(stream, now)
 		})
 		if err != nil {
 			fmt.Printf("INSERTING %s INTO DB FAILED: %s\n", stream.Username, err)

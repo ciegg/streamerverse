@@ -1,8 +1,8 @@
 package database
 
 import (
-	"fmt"
 	"github.com/go-pg/pg/v10/orm"
+	"time"
 )
 
 const (
@@ -28,12 +28,10 @@ type Streamer struct {
 }
 
 type viewer struct {
-	tableName struct{} `pg:"viewers,partition_by:LIST(iso_week)"`
-
 	// ORDER MATTERS
-	ISOWeek    string `pg:",type:varchar(9),pk"`
-	StreamerID string `pg:",pk"`
-	ID         int64  `pg:"type:bigint,pk"`
+	Date       time.Time `pg:"type:DATE,notnull,unique:date_streamer_viewer"`
+	StreamerID string    `pg:"unique:date_streamer_viewer"`
+	ID         int64     `pg:"type:bigint,nopk,unique:date_streamer_viewer"`
 }
 
 func createSchema() error {
@@ -51,16 +49,13 @@ func createSchema() error {
 		}
 	}
 
+	if _, err := db.Exec("SELECT create_hypertable('viewers', 'date', if_not_exists => TRUE)"); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec("CREATE INDEX ON viewers(streamer_id, date)"); err != nil {
+		return err
+	}
+
 	return nil
-}
-
-func createNewViewerPartition() error {
-	viewersTable, year, week := getCurrentViewersTable()
-
-	fmt.Printf("Adding new viewers table: %s\n", viewersTable)
-
-	tableSQL := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s PARTITION OF viewers FOR VALUES IN ('%s');`, viewersTable, fmt.Sprintf("Y%d-W%d", year, week))
-	_, err := db.Exec(tableSQL)
-
-	return err
 }
