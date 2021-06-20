@@ -32,6 +32,10 @@ func (c *collector) Start() {
 	for {
 		for _, plt := range c.platforms {
 			start := time.Now()
+
+			year, week := start.ISOWeek()
+			bucket := isoWeekToTime(year, week)
+
 			fmt.Printf("Fetching top %d streamers on %s\n", c.topX, plt.Name())
 
 			var streamers []database.Streamer
@@ -62,7 +66,7 @@ func (c *collector) Start() {
 
 			for x := 0; x < 10; x++ {
 				wg.Add(1)
-				go c.worker(&wg, x, plt, start)
+				go c.worker(&wg, x, plt, bucket)
 			}
 
 			wg.Wait()
@@ -75,7 +79,7 @@ func (c *collector) Start() {
 	}
 }
 
-func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform, now time.Time) {
+func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform, bucket time.Time) {
 	defer wg.Done()
 
 	for {
@@ -100,7 +104,7 @@ func (c *collector) worker(wg *sync.WaitGroup, num int, plt platform.Platform, n
 		fmt.Printf("WORKER %d: Inserting %s viewers into db\n", num, stream.Username)
 
 		err = withRetry(3, func() error {
-			return database.Insert(stream, now)
+			return database.Insert(stream, bucket)
 		})
 		if err != nil {
 			fmt.Printf("INSERTING %s INTO DB FAILED: %s\n", stream.Username, err)
@@ -120,4 +124,23 @@ func withRetry(num int, op func() error) error {
 	}
 
 	return err
+}
+
+// Taken from https://stackoverflow.com/a/52303730
+func isoWeekToTime(year, week int) time.Time {
+	// Start from the middle of the year:
+	t := time.Date(year, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	// Roll back to Monday:
+	if wd := t.Weekday(); wd == time.Sunday {
+		t = t.AddDate(0, 0, -6)
+	} else {
+		t = t.AddDate(0, 0, -int(wd)+1)
+	}
+
+	// Difference in weeks:
+	_, w := t.ISOWeek()
+	t = t.AddDate(0, 0, (week-w)*7)
+
+	return t
 }

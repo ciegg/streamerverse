@@ -48,14 +48,14 @@ func CloseDB() {
 	}
 }
 
-func Insert(stream *Stream, now time.Time) error {
+func Insert(stream *Stream, bucket time.Time) error {
 	viewers := make([]viewer, 0, len(stream.Viewers))
 
 	for _, chatter := range stream.Viewers {
 		viewers = append(viewers, viewer{
 			ID:         chatter,
 			StreamerID: stream.ID,
-			Date:       now,
+			Date:       bucket,
 		})
 	}
 
