@@ -53,7 +53,7 @@ func createSchema() error {
 		return err
 	}
 
-	if _, err := db.Exec("CREATE INDEX ON viewers(streamer_id, date)"); err != nil {
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS viewers_streamer_id_date_idx ON viewers(streamer_id, date)"); err != nil {
 		return err
 	}
 
